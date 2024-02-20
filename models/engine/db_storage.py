@@ -4,7 +4,7 @@
 import os
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 
 from models.base_model import Base
 
@@ -29,7 +29,7 @@ class DBStorage:
         ret_dict = {}
         if cls is None:
             for table in tables:
-                instances = self.__session.query(eval(table)).all
+                instances = self.__session.query(eval(table)).all()
                 for instance in instances:
                     key = instance.__class__.__name__ + '.' + instance.id
                     ret_dict.update({key: instance})
@@ -53,5 +53,11 @@ class DBStorage:
             self.__session.delete(obj)
 
     def reload(self):
-        # TODO: create all tables in the database (feature of SQLAlchemy) (WARNING: all classes who inherit from Base must be imported before calling Base.metadata.create_all(engine))
-        # TODO: create the current database session (self.__session) from the engine (self.__engine) by using a sessionmaker - the option expire_on_commit must be set to False ; and scoped_session - to make sure your Session is thread-safe
+        Base.metadata.create_all(bind=self.__engine)
+
+        session_factory = sessionmaker(bind=self.__engine, expire_on_commit=False)
+        Session = scoped_session(session_factory)
+        self.__session = Session()
+
+    def close(self):
+        self.__session.close()
